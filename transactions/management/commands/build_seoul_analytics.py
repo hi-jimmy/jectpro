@@ -65,6 +65,37 @@ def iter_csv_rows(archive, member):
         text.close()
 
 
+def iter_living_values(archive, member):
+    buffered = io.BufferedReader(archive.open(member))
+    encoding = csv_encoding(buffered.peek(8192))
+    text = io.TextIOWrapper(buffered, encoding=encoding, errors="strict", newline="")
+    try:
+        reader = csv.reader(text)
+        headers = next(reader, [])
+        header_indexes = {
+            str(header or "").strip().upper(): index
+            for index, header in enumerate(headers)
+        }
+        columns = []
+        for aliases in (
+            ("YMD", "일자"),
+            ("TT", "시간"),
+            ("H_DNG_CD", "행정동코드"),
+            ("SPOP", "생활인구합계"),
+        ):
+            index = next(
+                (header_indexes[alias.upper()] for alias in aliases if alias.upper() in header_indexes),
+                None,
+            )
+            if index is None:
+                raise csv.Error(f"Missing living-population column: {aliases[0]}")
+            columns.append(index)
+        for row in reader:
+            yield tuple(row[index] if index < len(row) else "" for index in columns)
+    finally:
+        text.close()
+
+
 def classify_archive(name):
     if name.startswith("250_LOCAL_RESD_"):
         return "living"
@@ -307,32 +338,43 @@ class Command(BaseCommand):
                     for member in members:
                         if max_files is not None and processed_files >= max_files:
                             break
-                        for source in iter_csv_rows(archive, member):
-                            row = normalize_row(source)
-                            period = first_value(row, "YMD", "일자")
+                        day_match = re.search(r"20\d{6}", member.filename)
+                        file_day = day_match.group(0) if day_match else ""
+                        for period, hour_value, administrative_code, total_text in iter_living_values(archive, member):
                             if len(period) < 6 or not period[:6].isdigit():
                                 continue
                             month = period[:6]
-                            hour_value = first_value(row, "TT", "시간")
-                            hour_match = re.search(r"\d{1,2}", hour_value)
-                            if not hour_match:
+                            try:
+                                hour = int(hour_value)
+                            except ValueError:
                                 continue
-                            hour = int(hour_match.group(0))
                             if hour > 23:
                                 continue
-                            administrative_code = first_value(row, "H_DNG_CD", "행정동코드")
                             district_code = administrative_code[:5]
                             district = district_by_code.get(district_code)
                             if not district:
                                 district = admin_by_code.get(district_code, district_code or "미분류")
-                            total_value = number_value(first_value(row, "SPOP", "생활인구합계"))
+                            if total_text in ("", "*"):
+                                total_value = None
+                            else:
+                                try:
+                                    total_value = float(total_text.replace(",", "")) if "," in total_text else float(total_text)
+                                except ValueError:
+                                    total_value = None
+                                if total_value is not None and not math.isfinite(total_value):
+                                    total_value = None
                             key = (month, hour, district_code, district)
                             item = aggregates.setdefault(
-                                key, {"total": 0.0, "rows": 0, "observed": 0, "masked": 0}
+                                key, {"total": 0.0, "rows": 0, "observed": 0, "masked": 0, "days": 0, "last_day": ""}
                             )
                             item["rows"] += 1
                             source_rows += 1
-                            available_days[key].add(period[:8])
+                            if file_day:
+                                if item["last_day"] != file_day:
+                                    item["days"] += 1
+                                    item["last_day"] = file_day
+                            else:
+                                available_days[key].add(period[:8])
                             if total_value is None:
                                 item["masked"] += 1
                                 masked_rows += 1
@@ -350,7 +392,7 @@ class Command(BaseCommand):
         records = []
         for key, values in sorted(aggregates.items()):
             month, hour, district_code, district = key
-            days = len(available_days[key])
+            days = values["days"] or len(available_days[key])
             records.append({
                 "period": month,
                 "hour": hour,
