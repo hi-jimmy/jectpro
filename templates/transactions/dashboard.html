@@ -1,0 +1,64 @@
+{% load static %}
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>서울 실거래 리포트</title>
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  <script src="{% static 'js/dashboard.js' %}" defer></script>
+</head>
+<body class="dashboard-page">
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">S.</span><span>서울 거래 리포트<small>SEOUL PROPERTY / 01</small></span></a>
+    <nav class="account-nav">
+      <span class="user-label">{{ request.user.username }}</span>
+      {% if request.user.is_staff %}<a href="/admin/">관리자</a>{% endif %}
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="text-button" type="submit">로그아웃</button></form>
+    </nav>
+  </header>
+  <main class="page-shell">
+    <nav class="dataset-nav" aria-label="데이터 메뉴">
+      <a href="{% url 'open_data' 'living' %}">생활인구</a>
+      <a href="{% url 'open_data' 'grid' %}">250m 격자</a>
+      <a href="{% url 'open_data' 'area' %}">상권영역</a>
+      <a href="{% url 'open_data' 'store' %}">점포</a>
+      <a href="{% url 'open_data' 'sales' %}">추정매출</a>
+    </nav>
+    <section class="page-heading">
+      <div><p class="eyebrow">SEOUL METROPOLITAN GOVERNMENT · TRANSACTION DATA</p><h1>실거래 리포트<span>.</span></h1><p class="lede">매매 계약 흐름을 자치구와 건물 용도별로 살펴봅니다.</p></div>
+      <div class="source-stamp"><span class="live-dot"></span> OPEN DATA <b>OA-21275</b><small>매일 1회 갱신</small></div>
+    </section>
+    <form class="filter-bar" method="get">
+      <label>계약연도<select name="year"><option value="">전체 연도</option>{% for year in years %}<option value="{{ year|date:'Y' }}" {% if selected_year == year|date:'Y' %}selected{% endif %}>{{ year|date:'Y' }}년</option>{% endfor %}</select></label>
+      <label>자치구<select name="district"><option value="">전체 자치구</option>{% for district in districts %}<option value="{{ district }}" {% if selected_district == district %}selected{% endif %}>{{ district }}</option>{% endfor %}</select></label>
+      <label>건물 용도<select name="building_use"><option value="">전체 용도</option>{% for use in uses %}<option value="{{ use }}" {% if selected_use == use %}selected{% endif %}>{{ use }}</option>{% endfor %}</select></label>
+      <button class="button button-dark" type="submit">필터 적용 <span aria-hidden="true">↗</span></button>
+      {% if selected_year or selected_district or selected_use %}<a class="clear-filter" href="/">초기화</a>{% endif %}
+    </form>
+    {% if has_data %}
+    <section class="metrics" aria-label="요약 지표">
+      <article class="metric"><p>조회 거래</p><strong>{{ summary.total|default:0 }}</strong><span>건</span><small>현재 조건 기준</small></article>
+      <article class="metric metric-accent"><p>평균 거래금액</p><strong>{{ summary.average|floatformat:0|default:0 }}</strong><span>만원</span><small>약 {{ summary.average|floatformat:0|default:0 }}만원</small></article>
+      <article class="metric"><p>거래금액 합계</p><strong>{{ summary.volume|floatformat:0|default:0 }}</strong><span>만원</span><small>취소 내역 포함 원본 기준</small></article>
+      <article class="metric metric-note"><p>데이터 범위</p><strong>SEOUL</strong><span>25 GU</span><small>서울특별시 전체</small></article>
+    </section>
+    <section class="chart-grid">
+      <article class="chart-panel chart-wide"><div class="panel-heading"><div><p class="eyebrow">01 / MONTHLY TREND</p><h2>월별 거래 흐름</h2></div><span>계약 건수 · 평균금액</span></div><div class="chart-wrap"><canvas id="monthly-chart" aria-label="월별 거래 건수와 평균금액 차트"></canvas></div></article>
+      <article class="chart-panel"><div class="panel-heading"><div><p class="eyebrow">02 / DISTRICT RANK</p><h2>자치구 비교</h2></div><span>거래 건수 상위 10</span></div><div class="chart-wrap chart-tall"><canvas id="district-chart" aria-label="자치구별 거래 건수 차트"></canvas></div></article>
+    </section>
+    <section class="table-section"><div class="section-heading"><div><p class="eyebrow">03 / LATEST CONTRACTS</p><h2>최근 거래</h2></div><span>{{ summary.total|default:0 }}건 중 최근 12건</span></div>
+      <div class="table-scroll"><table><thead><tr><th>계약일</th><th>자치구 / 법정동</th><th>건물명</th><th>용도</th><th>면적</th><th>층</th><th class="number-cell">거래금액</th></tr></thead><tbody>
+      {% for item in recent %}<tr><td>{{ item.contract_date|date:'Y.m.d' }}</td><td>{{ item.district_name }} <span class="subtext">{{ item.neighborhood_name }}</span></td><td class="building-name">{{ item.building_name|default:'건물명 미등록' }}</td><td><span class="use-label">{{ item.building_use }}</span></td><td>{{ item.building_area|default:'-' }}㎡</td><td>{{ item.floor|default:'-' }}</td><td class="number-cell">{{ item.amount_10k|floatformat:0 }}<small> 만원</small></td></tr>
+      {% empty %}<tr><td colspan="7" class="empty-cell">조건에 맞는 거래가 없습니다.</td></tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+    {% else %}
+    <section class="empty-state"><span class="empty-number">01</span><div><p class="eyebrow">DATASET IS READY</p><h2>아직 저장된 거래 데이터가 없습니다.</h2><p>관리자 권한이 있는 터미널에서 API 키를 설정한 뒤 수집 명령을 실행하면 대시보드가 채워집니다.</p><code>python manage.py sync_seoul_data --year 2025 --limit 1000</code></div><a class="button button-dark" href="/admin/">관리자 페이지 <span aria-hidden="true">↗</span></a></section>
+    {% endif %}
+    <footer class="page-footer"><span>DATA SOURCE · 서울열린데이터광장 / 서울시 부동산 실거래가 정보</span><span>단위: 금액 만원 · 면적 ㎡</span></footer>
+  </main>
+  <div id="chart-config" data-url="{% url 'chart_data' %}?{{ request.GET.urlencode }}" hidden></div>
+</body>
+</html>

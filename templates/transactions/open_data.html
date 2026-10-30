@@ -1,0 +1,250 @@
+{% load static %}
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ config.title }} | 서울 데이터 리포트</title>
+    <link rel="stylesheet" href="{% static 'css/site.css' %}" />
+  </head>
+  <body class="dashboard-page">
+    <header class="topbar">
+      <a class="brand" href="/"
+        ><span class="brand-mark">S.</span
+        ><span
+          >서울 데이터 리포트<small
+            >SEOUL OPEN DATA / {{ config.source }}</small
+          ></span
+        ></a
+      >
+      <nav class="account-nav">
+        <span class="user-label">{{ request.user.username }}</span>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}<button class="text-button" type="submit">
+            로그아웃
+          </button>
+        </form>
+      </nav>
+    </header>
+    <main class="page-shell">
+      <nav class="dataset-nav" aria-label="데이터 메뉴">
+        <a href="{% url 'open_data' 'living' %}">생활인구</a>
+        <a href="{% url 'open_data' 'grid' %}">250m 격자</a>
+        <a href="{% url 'open_data' 'area' %}">상권영역</a>
+        <a href="{% url 'open_data' 'store' %}">점포</a>
+        <a href="{% url 'open_data' 'sales' %}">추정매출</a>
+      </nav>
+      <section class="page-heading">
+        <div>
+          <p class="eyebrow">SEOUL OPEN DATA · {{ config.source }}</p>
+          <h1>{{ config.title }}<span>.</span></h1>
+          <p class="lede">
+            {{ config.dimension }} 기준 데이터 · {{ config.cadence }}
+          </p>
+        </div>
+        <a
+          class="source-stamp source-link"
+          href="{{ api_url }}"
+          target="_blank"
+          rel="noopener"
+          >원본 명세 ↗<small>서울열린데이터광장</small></a
+        >
+      </section>
+      <form class="filter-bar" method="get">
+        <label
+          >기준 시점<select name="period">
+            <option value="">전체 기간</option>
+            {% for available_period in periods %}
+            <option value="{{ available_period }}">
+              {{ available_period }}
+            </option>
+            {% endfor %}
+          </select></label
+        ><label class="search-label"
+          >상권·격자·업종 검색<input
+            type="search"
+            name="q"
+            value="{{ query }}"
+            placeholder="이름 또는 코드" /></label
+        ><button class="button button-dark" type="submit">
+          조회 <span aria-hidden="true">↗</span></button
+        ><a class="clear-filter" href="{% url 'open_data' dataset %}">초기화</a>
+      </form>
+      <section class="metrics dataset-metrics">
+        <article class="metric">
+          <p>저장 레코드</p>
+          <strong>{{ summary.total|default:0 }}</strong
+          ><span>{% if is_grid %}개{% else %}건{% endif %}</span
+          ><small>현재 조건 기준</small>
+        </article>
+        <article class="metric metric-accent">
+          <p>{{ config.metric }} 평균</p>
+          <strong>{{ summary.average|floatformat:0|default:0 }}</strong
+          ><small>수집된 수치 기준</small>
+        </article>
+        <article class="metric">
+          <p>{{ config.metric }} 합계</p>
+          <strong>{{ summary.volume|floatformat:0|default:0 }}</strong
+          ><small>현재 조건 기준</small>
+        </article>
+        <article class="metric metric-note">
+          <p>원본 데이터</p>
+          <strong>{{ config.source }}</strong><span>{{ source_type }}</span
+          ><small>{{ config.cadence }}</small>
+        </article>
+      </section>
+      {% if not is_grid %}
+      <section class="chart-grid data-chart-grid">
+        <article class="chart-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">01 / PERIOD TREND</p>
+              <h2>기준 시점별 흐름</h2>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas
+              id="open-data-timeline"
+              aria-label="기준 시점별 데이터 추이"
+            ></canvas>
+          </div>
+        </article>
+        <article class="chart-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">02 / TOP AREAS</p>
+              <h2>주요 격자·상권</h2>
+            </div>
+          </div>
+          <div class="chart-wrap chart-tall">
+            <canvas
+              id="open-data-leaders"
+              aria-label="주요 격자 또는 상권"
+            ></canvas>
+          </div>
+        </article>
+      </section>
+      {% endif %} {% if has_data %}
+      <section class="table-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">SOURCE RECORDS</p>
+            <h2>수집 데이터</h2>
+          </div>
+          <span
+            >{{ page_obj.start_index }}-{{ page_obj.end_index }} / {{
+            page_obj.paginator.count }}건</span
+          >
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>{% if is_grid %}격자 ID{% else %}기준 시점{% endif %}</th>
+                <th>자치구</th>
+                <th>
+                  {% if is_grid %}행정동 코드{% else %}상권 / 격자{% endif %}
+                </th>
+                <th>업종</th>
+                <th>주요 값</th>
+                <th>좌표</th>
+                <th>원본</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for record in records %}
+              <tr>
+                <td>
+                  {% if is_grid %}{{ record.cell_id }}{% else %}{{
+                  record.period|default:'-' }}{% endif %}
+                </td>
+                <td>
+                  {% if is_grid %}{{ record.administrative_code|default:'-' }}{%
+                  else %}{{ record.district_name|default:'-' }}{% endif %}
+                </td>
+                <td class="building-name">
+                  {% if is_grid %}{{ record.cell_id }}{% else %}{{
+                  record.display_name }}{% endif %}
+                </td>
+                <td>
+                  {% if is_grid %}{{ record.properties|length }}개 속성{% else
+                  %}{{ record.category_name|default:'-' }}{% endif %}
+                </td>
+                <td class="number-cell">
+                  {% if is_grid %}저장됨{% else %}{{
+                  record.metric_value|floatformat:2|default:'-' }}<small
+                    >{{ record.metric_label }}</small
+                  >{% endif %}
+                </td>
+                <td>
+                  {{ record.x_coordinate|default:'-' }}, {{
+                  record.y_coordinate|default:'-' }}
+                </td>
+                <td>
+                  {% if not is_grid %}
+                  <details class="raw-record">
+                    <summary>원본 필드</summary>
+                    <dl>
+                      {% for field_name, field_value in record.payload.items %}
+                      <dt>{{ field_name }}</dt>
+                      <dd>{{ field_value|default:'-' }}</dd>
+                      {% endfor %}
+                    </dl>
+                  </details>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {% if page_obj.has_other_pages %}
+      <nav class="table-pagination" aria-label="데이터 페이지 이동">
+        {% if page_obj.has_previous %}
+        <a
+          href="?period={{ selected_period }}&q={{ query }}&page={{ page_obj.previous_page_number }}"
+          >이전</a
+        >
+        {% endif %}
+        <span>{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a
+          href="?period={{ selected_period }}&q={{ query }}&page={{ page_obj.next_page_number }}"
+          >다음</a
+        >
+        {% endif %}
+      </nav>
+      {% endif %} {% else %}
+      <section class="empty-state">
+        <span class="empty-number">{{ config.source }}</span>
+        <div>
+          <p class="eyebrow">{{ config.source }} DATASET</p>
+          <h2>{{ empty_heading }}</h2>
+          <p>{{ empty_description }}</p>
+          <code>{{ empty_command }}</code>
+          <p class="import-note">{{ extra_note }}</p>
+        </div>
+        <a class="button button-dark" href="/admin/"
+          >관리자 페이지 <span aria-hidden="true">↗</span></a
+        >
+      </section>
+      {% endif %}
+      <footer class="page-footer">
+        <span>DATA SOURCE · 서울열린데이터광장 {{ config.source }}</span
+        ><span>원본 필드 전체는 레코드 JSON으로 보존</span>
+      </footer>
+    </main>
+    <div
+      id="open-data-chart-config"
+      data-url="{{ chart_url }}"
+      data-label="{{ config.metric }}"
+      hidden
+    ></div>
+    <script
+      src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+      defer
+    ></script>
+    <script src="{% static 'js/open_data.js' %}" defer></script>
+  </body>
+</html>
