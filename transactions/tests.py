@@ -129,6 +129,7 @@ class DashboardTests(TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["average_daily_population"], 2.5)
         self.assertEqual(rows[0]["masked_rows"], 1)
+        self.assertEqual(rows[0]["days"], 1)
         self.assertEqual(metadata["masked_rows"], 1)
 
     def test_analytics_sales_skips_identical_csv_files_and_reports_the_count(self):
