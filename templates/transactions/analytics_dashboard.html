@@ -1,0 +1,130 @@
+{% load static %}
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>서울 데이터 통합 분석 | 서울 데이터 리포트</title>
+    <link rel="stylesheet" href="{% static 'css/site.css' %}" />
+  </head>
+  <body class="dashboard-page">
+    <header class="topbar">
+      <a class="brand" href="/">
+        <span class="brand-mark">S.</span>
+        <span>서울 데이터 리포트<small>SEOUL OPEN DATA · 통합 분석</small></span>
+      </a>
+      <nav class="account-nav">
+        <span class="user-label">{{ request.user.username }}</span>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}<button class="text-button" type="submit">로그아웃</button>
+        </form>
+      </nav>
+    </header>
+    <main class="page-shell analytics-shell">
+      <nav class="dataset-nav" aria-label="데이터 메뉴">
+        <a href="{% url 'analytics_dashboard' %}" aria-current="page">통합 분석</a>
+        <a href="{% url 'open_data' 'living' %}">생활인구</a>
+        <a href="{% url 'open_data' 'grid' %}">250m 격자</a>
+        <a href="{% url 'open_data' 'area' %}">상권영역</a>
+        <a href="{% url 'open_data' 'store' %}">점포</a>
+        <a href="{% url 'open_data' 'sales' %}">추정매출</a>
+      </nav>
+      <section class="page-heading">
+        <div>
+          <p class="eyebrow">SEOUL OPEN DATA · COMPACT ANALYTICS</p>
+          <h1>서울 데이터 통합 분석<span>.</span></h1>
+          <p class="lede">생활인구·상권·점포·매출 데이터를 기간과 자치구별로 탐색합니다.</p>
+        </div>
+        <div class="source-stamp">
+          <span class="live-dot"></span><b id="analysis-status">분석 데이터 확인 중</b>
+          <small id="analysis-generated">ZIP 원본 스트리밍 집계</small>
+        </div>
+      </section>
+      <section class="analysis-filters" aria-label="분석 조건">
+        <label>데이터<select id="analysis-dataset">
+          <option value="living">내국인 생활인구</option>
+          <option value="sales">추정매출</option>
+          <option value="store">점포 현황</option>
+          <option value="area">상권영역</option>
+        </select></label>
+        <label>기준 시점<select id="analysis-period"></select></label>
+        <label>자치구<select id="analysis-district"></select></label>
+        <label id="analysis-hour-filter">시간대<select id="analysis-hour"></select></label>
+        <label id="analysis-category-filter">업종<select id="analysis-category"></select></label>
+        <label>분석 지표<select id="analysis-metric"></select></label>
+      </section>
+      <p class="analysis-error" id="analysis-error" role="alert" hidden></p>
+      <section class="metrics analytics-metrics">
+        <article class="metric">
+          <p id="metric-title-1">분석 기간</p>
+          <strong id="metric-value-1">-</strong>
+          <small id="metric-note-1">선택 조건 기준</small>
+        </article>
+        <article class="metric metric-accent">
+          <p id="metric-title-2">분석 레코드</p>
+          <strong id="metric-value-2">-</strong>
+          <small id="metric-note-2">집계 단위</small>
+        </article>
+        <article class="metric">
+          <p id="metric-title-3">주요 지표</p>
+          <strong id="metric-value-3">-</strong>
+          <small id="metric-note-3">선택 조건 기준</small>
+        </article>
+        <article class="metric metric-note">
+          <p>공간 데이터</p>
+          <strong id="metric-value-4">-</strong>
+          <small id="metric-note-4">250m 격자 · 행정동 코드</small>
+        </article>
+      </section>
+      <section class="chart-grid analytics-chart-grid">
+        <article class="chart-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">01 / TIME SERIES</p><h2 id="timeline-title">기간별 흐름</h2></div>
+            <span id="timeline-unit"></span>
+          </div>
+          <div class="chart-wrap"><canvas id="analysis-timeline" aria-label="기간별 데이터 추이"></canvas></div>
+        </article>
+        <article class="chart-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">02 / DISTRICT RANK</p><h2 id="rank-title">자치구 비교</h2></div>
+            <span id="rank-unit"></span>
+          </div>
+          <div class="chart-wrap chart-tall"><canvas id="analysis-rank" aria-label="자치구별 비교"></canvas></div>
+        </article>
+      </section>
+      <section class="chart-grid analytics-chart-grid analytics-chart-lower">
+        <article class="chart-panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">03 / PROFILE</p><h2 id="profile-title">시간·업종 구성</h2></div>
+            <span id="profile-unit"></span>
+          </div>
+          <div class="chart-wrap"><canvas id="analysis-profile" aria-label="시간대 또는 업종별 구성"></canvas></div>
+        </article>
+        <article class="chart-panel analysis-note-panel">
+          <p class="eyebrow">DATA NOTES</p>
+          <h2>분석 기준</h2>
+          <ul id="analysis-notes"></ul>
+        </article>
+      </section>
+      <section class="table-section">
+        <div class="section-heading">
+          <div><p class="eyebrow">TOP RESULTS</p><h2>조건별 상위 결과</h2></div>
+          <span id="table-count"></span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th>순위</th><th>자치구</th><th>업종·시간</th><th class="number-cell">분석 지표</th></tr></thead>
+            <tbody id="analysis-results"><tr><td class="empty-cell" colspan="4">데이터를 불러오는 중입니다.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+      <footer class="page-footer">
+        <span>DATA SOURCE · 서울열린데이터광장 · 공개 원본 ZIP 집계</span>
+        <span id="analysis-source-count">원본 파일 확인 중</span>
+      </footer>
+    </main>
+    <div id="analysis-data-config" data-url="{% static 'data/seoul_analytics.json' %}" hidden></div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+    <script src="{% static 'js/analytics_dashboard.js' %}" defer></script>
+  </body>
+</html>
