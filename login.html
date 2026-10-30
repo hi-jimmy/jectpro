@@ -1,0 +1,50 @@
+{% load static %}
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>서울 거래 리포트 로그인</title>
+    <link rel="stylesheet" href="{% static 'css/site.css' %}" />
+  </head>
+  <body class="login-page">
+    <main class="login-layout">
+      <section class="login-panel">
+        <h2>로그인</h2>
+        <form method="post">
+          {% csrf_token %} {% if form.errors %}
+          <p class="form-error">아이디 또는 비밀번호를 확인해 주세요.</p>
+          {% endif %}
+          <label for="id_username">아이디</label>
+          <input
+            id="id_username"
+            name="username"
+            type="text"
+            autocomplete="username"
+            required
+            autofocus
+          />
+          <label for="id_password">비밀번호</label>
+          <input
+            id="id_password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required
+          />
+          <input type="hidden" name="next" value="{{ next }}" />
+          <button class="button button-dark" type="submit">
+            로그인 <span aria-hidden="true">↗</span>
+          </button>
+        </form>
+        <div class="auth-links">
+          <a href="{% url 'signup' %}">아이디 생성</a>
+          <a href="{% url 'password_reset' %}">비밀번호 찾기</a>
+        </div>
+        <a class="admin-link" href="/admin/"
+          >관리자 페이지 <span aria-hidden="true">↗</span></a
+        >
+      </section>
+    </main>
+  </body>
+</html>

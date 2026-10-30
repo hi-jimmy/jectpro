@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: seoulhomes
+    runtime: python
+    plan: free
+    buildCommand: bash build.sh
+    startCommand: python -m gunicorn seoulhomes.wsgi:application --bind 0.0.0.0:$PORT
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: seoulhomes-db
+          property: connectionString
+      - key: DJANGO_ALLOWED_HOSTS
+        value: localhost,127.0.0.1
+
+databases:
+  - name: seoulhomes-db
+    databaseName: seoulhomes
+    user: seoulhomes
+    plan: free

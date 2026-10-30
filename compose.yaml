@@ -1,0 +1,21 @@
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: seoulhomes
+      MARIADB_USER: seoulhomes
+      MARIADB_PASSWORD: seoulhomes-local
+      MARIADB_ROOT_PASSWORD: root-local-change-me
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  mariadb_data:

@@ -1,0 +1,48 @@
+{% extends "admin/base_site.html" %} {% load static %} {% block extrastyle %}{{
+block.super }}<link
+  rel="stylesheet"
+  href="{% static 'css/admin_upload.css' %}"
+/>{% endblock %} {% block content %}
+<div class="upload-page">
+  <div class="upload-heading">
+    <div>
+      <p class="upload-eyebrow">SEOUL OPEN DATA · IMPORT</p>
+      <h1>{{ label }} 업로드</h1>
+      <p>현재 저장된 데이터 <strong>{{ count|floatformat:0 }}</strong>행</p>
+    </div>
+    <a
+      class="upload-back"
+      href="{% url 'admin:transactions_seoulopenrecord_changelist' %}"
+      >데이터 목록</a
+    >
+  </div>
+  <form method="post" enctype="multipart/form-data" id="dataset-upload-form">
+    {% csrf_token %} {% if form.non_field_errors %}
+    <div class="upload-errors">{{ form.non_field_errors }}</div>
+    {% endif %} {% for error in form.file.errors %}
+    <div class="upload-errors">{{ error }}</div>
+    {% endfor %}
+    <label class="drop-zone" id="drop-zone" for="id_file" tabindex="0">
+      <span class="drop-icon" aria-hidden="true">↑</span>
+      <strong id="file-prompt">파일을 여기로 끌어오세요</strong>
+      <span id="file-name">CSV, XLSX 또는 공식 ZIP · 최대 100MB</span>
+      {{ form.file }}
+    </label>
+    <label class="replace-option"
+      >{{ form.replace_existing }}<span
+        >같은 키가 있으면 기존 레코드 업데이트</span
+      ></label
+    >
+    <div class="upload-actions">
+      <button class="button button-dark" type="submit">
+        데이터 적재 시작 <span aria-hidden="true">↗</span></button
+      ><a href="{% url 'admin:index' %}">관리자 홈</a>
+    </div>
+  </form>
+  <p class="upload-note">
+    원본 컬럼은 레코드에 함께 보존됩니다. ZIP을 올리면 내부 CSV를 배치로
+    적재합니다.
+  </p>
+</div>
+<script src="{% static 'js/admin_upload.js' %}" defer></script>
+{% endblock %}
