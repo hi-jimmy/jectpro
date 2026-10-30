@@ -126,3 +126,16 @@ python manage.py import_seoul_grid path\to\grid.shp
 ```
 
 EPSG:5181 상권영역과 EPSG:5179 인구격자는 서로 다른 좌표계이므로 공간 연산 전에 GIS 도구로 공통 좌표계로 변환해야 합니다. API 원본 필드 전체는 `SeoulOpenRecord.payload`에 보존됩니다. 데이터 메뉴와 차트는 로그인 후 이용할 수 있습니다. 현재 데이터베이스에는 공식 API 샘플로 생활인구·점포·매출 각 5건이 적재되어 있습니다. 파일 다운로드가 필요한 영역/격자는 원본 파일이 로컬에 아직 없으므로 위 명령으로 넣을 수 있습니다.
+
+## 통합 분석 대시보드
+
+로그인 후 `/analysis/`에서 생활인구·점포·추정매출·상권영역의 기간, 자치구, 시간대, 업종별 집계와 차트를 확인할 수 있습니다. 대시보드는 `static/data/seoul_analytics.json`만 읽으며, 공개 원본 ZIP 전체를 웹 서비스나 데이터베이스에 올리지 않습니다.
+
+원본 ZIP은 로컬에 보관하고 프로젝트 가상환경에서 집계 파일을 생성합니다. 전체 파일을 압축 해제하지 않고 순차 처리합니다. 빠른 검증에는 `--max-living-files 1`을 사용하고, 전체 집계 시에는 해당 옵션을 생략합니다.
+
+```powershell
+python manage.py build_seoul_analytics "C:\Users\user\Downloads\jectpro" --max-living-files 1
+python manage.py build_seoul_analytics "C:\Users\user\Downloads\jectpro"
+```
+
+생성된 JSON은 공개 공공데이터의 집계값입니다. 생활인구 합계가 `*`로 비식별된 행은 생활인구 합계에서 제외하며, 대시보드에 제외 수를 표시합니다. 원본 ZIP이나 개인용 데이터 백업은 GitHub에 추가하지 마세요. JSON을 갱신한 뒤 코드와 함께 GitHub에 push하면 Render가 정적 분석 데이터를 배포합니다.
