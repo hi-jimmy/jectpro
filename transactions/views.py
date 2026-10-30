@@ -33,7 +33,12 @@ def filtered_transactions(request):
 
 @login_required
 def dashboard(request):
-    return redirect("open_data", dataset="living")
+    return redirect("analytics_dashboard")
+
+
+@login_required
+def analytics_dashboard(request):
+    return render(request, "transactions/analytics_dashboard.html")
 
 
 @login_required

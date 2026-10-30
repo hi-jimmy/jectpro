@@ -4,7 +4,11 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import TestCase
 from django.urls import reverse
+from pathlib import Path
+import tempfile
+import zipfile
 
+from transactions.management.commands.build_seoul_analytics import Command as AnalyticsCommand
 from transactions.management.commands.sync_open_data import make_record
 from transactions.management.commands.sync_seoul_archives import ArchiveListParser, normalize_csv_row
 from .models import SeoulOpenRecord
@@ -19,10 +23,20 @@ class DashboardTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(reverse("login"), response.url)
 
-    def test_root_redirects_to_living_population_page(self):
+    def test_root_redirects_to_analysis_dashboard(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse("dashboard"))
-        self.assertRedirects(response, "/data/living/", fetch_redirect_response=False)
+        self.assertRedirects(response, reverse("analytics_dashboard"), fetch_redirect_response=False)
+
+    def test_analysis_dashboard_requires_login_and_renders_for_users(self):
+        response = self.client.get(reverse("analytics_dashboard"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("analytics_dashboard"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "서울 데이터 통합 분석")
+        self.assertContains(response, "analytics_dashboard.js")
 
     def test_legacy_transaction_chart_redirects_to_login(self):
         response = self.client.get(reverse("chart_data"))
@@ -95,6 +109,45 @@ class DashboardTests(TestCase):
         sales = make_record("sales", {"기준_년분기_코드": "20251", "상권_코드": "3001491", "상권_코드_명": "이태원", "서비스_업종_코드": "CS300015", "서비스_업종_코드_명": "가방", "당월_매출_금액": "1569075360"})
         self.assertEqual(str(store.metric_value), "88")
         self.assertEqual(str(sales.metric_value), "1569075360")
+
+    def test_analytics_living_rows_aggregate_masked_values_by_district_and_hour(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            archive_path = Path(temp_dir) / "population.zip"
+            csv_content = (
+                "YMD,TT,H_DNG_CD,SPOP\n"
+                "20250101,12,11110515,2.5\n"
+                "20250101,12,11110515,*\n"
+            )
+            with zipfile.ZipFile(archive_path, "w") as archive:
+                archive.writestr("population.csv", csv_content)
+            rows, metadata = AnalyticsCommand().read_living(
+                [(archive_path, "living")],
+                {"trade": {"district_code": "11110", "district": "종로구"}},
+                {},
+                None,
+            )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["average_daily_population"], 2.5)
+        self.assertEqual(rows[0]["masked_rows"], 1)
+        self.assertEqual(metadata["masked_rows"], 1)
+
+    def test_analytics_sales_skips_identical_csv_files_and_reports_the_count(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            archive_paths = [Path(temp_dir) / "sales-a.zip", Path(temp_dir) / "sales-b.zip"]
+            csv_content = (
+                "STDR_YYQU_CD,TRDAR_CD,SVC_INDUTY_CD_NM,당월_매출_금액\n"
+                "20251,trade,음식점,1000\n"
+            )
+            for archive_path in archive_paths:
+                with zipfile.ZipFile(archive_path, "w") as archive:
+                    archive.writestr("sales.csv", csv_content)
+            rows, metadata = AnalyticsCommand().read_sales(
+                [(path, "sales") for path in archive_paths],
+                {"trade": {"district_code": "11110", "district": "종로구"}},
+            )
+        self.assertEqual(metadata["source_rows"], 1)
+        self.assertEqual(metadata["duplicate_csv_files_skipped"], 1)
+        self.assertEqual(rows[0]["metrics"]["당월_매출_금액"], 1000)
 
     def test_admin_upload_page_is_staff_only(self):
         upload_url = reverse("admin:dataset_upload", kwargs={"dataset": "living"})
