@@ -321,8 +321,11 @@
     $("metric-value-3").textContent = formatNumber(valueSum);
     $("metric-note-3").textContent = "선택 조건 합계";
     $("metric-value-4").textContent = formatNumber(payload.metadata.grid.cell_count || 0);
+    const sourceRows = dataset === "area"
+      ? payload.metadata.trade_area.records
+      : payload.metadata[dataset]?.source_rows ?? 0;
     $("analysis-source-count").textContent =
-      `원본 행 ${formatNumber(payload.metadata[dataset]?.source_rows || payload.metadata.trade_area.records)} · 집계 ${formatNumber(allRows.length)}행`;
+      `원본 행 ${formatNumber(sourceRows)} · 집계 ${formatNumber(allRows.length)}행`;
   }
 
   function renderNotes(dataset) {
@@ -341,6 +344,7 @@
       notes.push("상권영역 SHP의 자치구별 영역 수와 면적을 요약했습니다.");
       notes.push("면적 단위는 원본 SHP 속성 기준 ㎡이며, 지도 경계는 표시하지 않습니다.");
     }
+    notes.push("기간 추이는 전체 기간을 표시하고, 기준 시점은 자치구·업종 비교에 적용합니다.");
     notes.push(`분석 원본: ${payload.metadata.sources.length}개 ZIP 파일`);
     const list = $("analysis-notes");
     list.replaceChildren();
