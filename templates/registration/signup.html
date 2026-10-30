@@ -1,0 +1,51 @@
+{% load static %}
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>아이디 생성 | 서울 거래 리포트</title>
+    <link rel="stylesheet" href="{% static 'css/site.css' %}" />
+  </head>
+  <body class="login-page">
+    <main class="login-layout">
+      <section class="login-story">
+        <p class="eyebrow">SEOUL / PROPERTY DATA</p>
+        <h1>데이터를<br />내 것으로.</h1>
+        <p>계정을 만들고 서울 데이터 리포트를 확인하세요.</p>
+        <span class="story-index">MEMBER ACCESS</span>
+      </section>
+      <section class="login-panel">
+        <p class="eyebrow">CREATE ACCOUNT</p>
+        <h2>아이디 생성</h2>
+        <form method="post">
+          {% csrf_token %} {% if form.non_field_errors %}
+          <div class="form-error">{{ form.non_field_errors }}</div>
+          {% endif %}
+          <label for="id_username">아이디</label>
+          {{ form.username }} {% for error in form.username.errors %}
+          <p class="form-error">{{ error }}</p>
+          {% endfor %}
+          <label for="id_email">이메일</label>
+          {{ form.email }} {% for error in form.email.errors %}
+          <p class="form-error">{{ error }}</p>
+          {% endfor %}
+          <label for="id_password1">비밀번호</label>
+          {{ form.password1 }} {% for error in form.password1.errors %}
+          <p class="form-error">{{ error }}</p>
+          {% endfor %}
+          <label for="id_password2">비밀번호 확인</label>
+          {{ form.password2 }} {% for error in form.password2.errors %}
+          <p class="form-error">{{ error }}</p>
+          {% endfor %}
+          <button class="button button-dark" type="submit">
+            계정 만들기 <span aria-hidden="true">↗</span>
+          </button>
+        </form>
+        <div class="auth-links">
+          <a href="{% url 'login' %}">로그인으로 돌아가기</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
